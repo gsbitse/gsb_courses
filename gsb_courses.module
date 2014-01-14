@@ -1,0 +1,152 @@
+<?php
+/**
+ * @file
+ * Code for the GSB Courses feature.
+ */
+
+include_once 'gsb_courses.features.inc';
+
+/**
+ * Implements hook_form_alter().
+ *
+ * Modify the search URL to retrieve the XML URL instead.
+ */
+function gsb_courses_form_alter(&$form, &$form_state, $form_id) {
+  if (($form_id == 'gsb_course_importer_node_form') || ($form_id == 'gsb_course_section_importer_node_form') || $form_id == 'feeds_import_tab_form') {
+    //make our validation function run first
+    if (is_array($form['#validate'])) {
+      array_unshift($form['#validate'], 'gsb_courses_feed_url_validate');
+    }
+    else {
+      $form['#validate'][] = 'gsb_courses_feed_url_validate';
+    }
+  }
+  if ($form_id == 'gsb_course_node_form') {
+    //make our validation function run first
+    if (is_array($form['#validate'])) {
+      array_unshift($form['#validate'], 'gsb_courses_ec_link_validate');
+    }
+    else {
+      $form['#validate'][] = 'gsb_courses_ec_link_validate';
+    }
+  }
+}
+
+/**
+ * Modify the search URL to retrieve the XML URL instead.
+ */
+function gsb_courses_feed_url_validate($form, &$form_state) {
+  //Let's make things a little easier on the user
+  $feed_url = $form_state['values']['feeds']['FeedsHTTPFetcher']['source'];  
+  $feed_url = preg_replace('/view\=catalog/', 'view=xml-20130925', $feed_url);
+  $feed_url = preg_replace('/https/', 'http', $feed_url);
+  form_set_value(array('#parents' => array('feeds', 'FeedsHTTPFetcher', 'source')), $feed_url, $form_state);
+}
+
+/*
+ * Modify the ExploreCourses link to pass the subject and code through urlencode().
+ */
+function gsb_courses_ec_link_validate($form, &$form_state) {
+  $subject = $form_state['values']['field_gsb_course_subject']['und'][0]['value'];
+  $code = $form_state['values']['field_gsb_course_code']['und'][0]['value'];
+  $ec_link = 'http://explorecourses.stanford.edu/search?view=catalog&filter-coursestatus-Active=on&q=' . urlencode($subject) . urlencode($code);
+  form_set_value(array('#parents' => array('field_gsb_course_ec_link', 'und', 0, 'url')), $ec_link, $form_state);
+}
+
+/*
+ * Implements hook_ctools_plugin_directory().
+ */
+function gsb_courses_ctools_plugin_directory($module, $plugin) {
+  if ($module == 'feeds_tamper') {
+    return 'plugins';
+  }
+}
+
+
+// Custom functions
+
+/**
+ * Implements hook_menu().
+ */
+function gsb_courses_menu() {
+  $items = array();
+
+  $items['gsb-courses-import/%'] = array(
+    'title' => 'GSB courses import.',
+    'description' => 'GSB courses import.',
+    'page callback' => 'gsb_courses_import',
+    'page arguments' => array(1),
+    'access arguments' => array('administer content'),
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_cron().
+ */
+function gsb_courses_cron() {
+  // Run the cron to import the current acad year courses
+  gsb_courses_import();
+  
+  //@TODO 
+  // 1. course import
+  // 2. menu item for course section
+}
+
+/**
+ * Function to update the sunet in courses section
+ */
+function gsb_courses_import($acad_year = NULL, $subject = 'ACCT') {
+  watchdog('gsb_courses', 'gsb_courses_import function run');
+  $importer_id = 'gsb_course_section_importer';
+  $subjects = array(
+     'ACCT' => 'ACCT',
+     'MGTECON' => 'MGTECON',
+    // 'FINANCE' => 'FINANCE',
+    // 'GSBGEN' => 'GSBGEN',
+    // 'HRMGT' => 'HRMGT',
+    // 'MKTG' => 'MKTG',
+    // 'OIT' => 'OIT',
+    // 'OB' => 'OB',
+    // 'POLECON' => 'POLECON',
+    // 'STRAMGT' => 'STRAMGT',
+  );
+
+  // Create feed importer content for each subject
+  foreach ($subjects as $subject => $value) {
+    gsb_courses_create_feed_node($acad_year, $subject, $importer_id);
+  }
+
+  drupal_goto('admin/content');
+}
+
+function gsb_courses_create_feed_node($acad_year = NULL, $subject = 'ACCT', $importer_id) {
+  // Create the feed node from importer
+  $node = new stdClass();
+  $node->type = $importer_id;
+  $node->title = 'GSB Course '. $subject . ' for ' . $acad_year; 
+  node_save($node);
+
+  // Import the feed
+  gsb_courses_import_feed($acad_year, $subject, $node);
+}
+
+function gsb_courses_import_feed($acad_year = NULL, $subject = 'ACCT', $node) {
+  // Set the url
+  $url = 'http://explorecourses.stanford.edu/search?view=xml-20130925&filter-coursestatus-Active=on&page=0&q='.$subject.'&academicYear='.$acad_year;
+
+  // Load the feeds source
+  $feeds_source = feeds_source($node->type, $node->nid);
+  
+  // Set up configuration
+  $feeds_config = $feeds_source->getConfigFor($feeds_source->importer->fetcher);
+  $feeds_config['source'] = $url;
+  
+  // Set Configurations to feeds source
+  $feeds_source->setConfigFor($feeds_source->importer->fetcher, $feeds_config);
+  
+  $feeds_source->save();
+ 
+  while (FEEDS_BATCH_COMPLETE != $feeds_source->import()); 
+}
+
