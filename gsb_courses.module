@@ -62,9 +62,7 @@ function gsb_courses_ctools_plugin_directory($module, $plugin) {
   }
 }
 
-
 // Custom functions
-
 /**
  * Implements hook_menu().
  */
@@ -89,32 +87,35 @@ function gsb_courses_cron() {
   gsb_courses_import();
   
   //@TODO 
-  // 1. course import
-  // 2. menu item for course section
+  // 1. batch processing
+  // 2. not sure. need to see if we need to update the entityreference field to create the view
 }
 
 /**
  * Function to update the sunet in courses section
  */
 function gsb_courses_import($acad_year = NULL, $subject = 'ACCT') {
-  watchdog('gsb_courses', 'gsb_courses_import function run');
-  $importer_id = 'gsb_course_section_importer';
+  $importer_id_course = 'gsb_course_importer';
+  $importer_id_course_section = 'gsb_course_section_importer';
   $subjects = array(
      'ACCT' => 'ACCT',
      'MGTECON' => 'MGTECON',
-    // 'FINANCE' => 'FINANCE',
-    // 'GSBGEN' => 'GSBGEN',
-    // 'HRMGT' => 'HRMGT',
-    // 'MKTG' => 'MKTG',
-    // 'OIT' => 'OIT',
-    // 'OB' => 'OB',
-    // 'POLECON' => 'POLECON',
-    // 'STRAMGT' => 'STRAMGT',
+     'FINANCE' => 'FINANCE',
+     'GSBGEN' => 'GSBGEN',
+     'HRMGT' => 'HRMGT',
+     'MKTG' => 'MKTG',
+     'OIT' => 'OIT',
+     'OB' => 'OB',
+     'POLECON' => 'POLECON',
+     'STRAMGT' => 'STRAMGT',
   );
 
   // Create feed importer content for each subject
   foreach ($subjects as $subject => $value) {
-    gsb_courses_create_feed_node($acad_year, $subject, $importer_id);
+    // course first
+    gsb_courses_create_feed_node($acad_year, $subject, $importer_id_course);
+    // course section next
+    gsb_courses_create_feed_node($acad_year, $subject, $importer_id_course_section);
   }
 
   drupal_goto('admin/content');
@@ -149,4 +150,3 @@ function gsb_courses_import_feed($acad_year = NULL, $subject = 'ACCT', $node) {
  
   while (FEEDS_BATCH_COMPLETE != $feeds_source->import()); 
 }
-
