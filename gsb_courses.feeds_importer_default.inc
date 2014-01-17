@@ -128,6 +128,8 @@ function gsb_courses_feeds_importer_default() {
     'import_on_create' => 1,
     'process_in_background' => 1,
   );
+  
+  $export['gsb_course_importer'] = $feeds_importer;
 
   $feeds_importer = new stdClass();
   $feeds_importer->disabled = FALSE; /* Edit this to true to make a default feeds_importer disabled initially */
