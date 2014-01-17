@@ -234,7 +234,7 @@ function gsb_courses_feeds_importer_default() {
         'source' => 'xpathparser:6',
         'target' => 'field_gsb_course_sec_ins',
         'unique' => FALSE,
-      ),      
+      ),
       7 => array(
         'source' => 'xpathparser:7',
         'target' => 'field_gsb_course_sec_ins_first_n',
@@ -247,7 +247,7 @@ function gsb_courses_feeds_importer_default() {
       ),
       9 => array(
         'source' => 'xpathparser:9',
-        'target' => 'field_gsb_course_sec_ins_sunet',
+        'target' => 'field_gsb_course_sec_ins_sunet:label',
         'unique' => FALSE,
       ),
       ),
@@ -265,6 +265,7 @@ function gsb_courses_feeds_importer_default() {
     'import_on_create' => 1,
     'process_in_background' => 1,
   );
+
 
   $export['gsb_course_section_importer'] = $feeds_importer;
 
